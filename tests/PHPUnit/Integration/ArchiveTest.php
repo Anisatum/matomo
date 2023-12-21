@@ -282,7 +282,7 @@ class ArchiveTest extends IntegrationTestCase
             . " WHERE `name` IN ('done', 'done.VisitsSummary')");
         $expected = [
             ['date1' => '2020-03-04', 'date2' => '2020-03-04', 'name' => 'done', 'period' => 1, 'value' => '1'],
-            ['date1' => '2020-03-05', 'date2' => '2020-03-05', 'name' => 'done', 'period' => 1, 'value' => '1']
+            ['date1' => '2020-03-05', 'date2' => '2020-03-05', 'name' => 'done', 'period' => 1, 'value' => '3']
         ];
         $this->assertEquals($expected, $archives);
 
@@ -337,7 +337,7 @@ class ArchiveTest extends IntegrationTestCase
         $expected = [
             ['date1' => '2020-03-04', 'date2' => '2020-03-04', 'name' => 'done', 'period' => 1, 'value' => '1'],
             ['date1' => '2020-03-05', 'date2' => '2020-03-05', 'name' => 'done', 'period' => 1, 'value' => '1'],
-            ['date1' => '2020-03-06', 'date2' => '2020-03-06', 'name' => 'done', 'period' => 1, 'value' => '1'],
+            ['date1' => '2020-03-06', 'date2' => '2020-03-06', 'name' => 'done', 'period' => 1, 'value' => '3'],
         ];
         $this->assertEquals($expected, $archives);
 
@@ -392,7 +392,7 @@ class ArchiveTest extends IntegrationTestCase
             . " WHERE `name` IN ('done', 'done.VisitsSummary')");
 
         $expected = [
-            ['date1' => '2020-03-04', 'date2' => '2020-03-04', 'name' => 'done', 'period' => 1, 'value' => '1']
+            ['date1' => '2020-03-04', 'date2' => '2020-03-04', 'name' => 'done', 'period' => 1, 'value' => '3']
         ];
         $this->assertEquals($expected, $archives);
 

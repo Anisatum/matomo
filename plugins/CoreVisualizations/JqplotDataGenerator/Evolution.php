@@ -350,7 +350,7 @@ class Evolution extends JqplotDataGenerator
             $period = $dataTables[$dataTableDate]->getMetadata(DataTableFactory::TABLE_METADATA_PERIOD_INDEX);
             $state = $dataTables[$dataTableDate]->getMetadata(DataTable::ARCHIVE_STATE_METADATA_NAME);
 
-            if (false === $state) {
+            if (false === $state || DataTable::ID_ARCHIVE_STATE_NODATA === $state) {
                 $state = DataTable::ID_ARCHIVE_STATE_COMPLETE;
             }
 

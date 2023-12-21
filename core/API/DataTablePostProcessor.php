@@ -120,6 +120,7 @@ class DataTablePostProcessor
         }
 
         $dataTable = $this->applyGenericFilters($dataTable);
+        $dataTable = $this->applyArchiveStateFilter($dataTable);
         $this->applyComputeProcessedMetrics($dataTable);
         $dataTable = $this->applyComparison($dataTable);
 
@@ -142,6 +143,23 @@ class DataTablePostProcessor
     {
         $dataTable->filter('AddSegmentBySegmentValue', array($this->report));
         $dataTable->filter('ColumnCallbackDeleteMetadata', array('segmentValue'));
+
+        return $dataTable;
+    }
+
+    /**
+     * @param DataTableInterface $dataTable
+     * @return DataTableInterface
+     */
+    public function applyArchiveStateFilter($dataTable)
+    {
+        $fetchArchiveState = Common::getRequestVar('fetch_archive_state', '0', 'string', $this->request);
+
+        if ('0' === $fetchArchiveState) {
+            $dataTable->filter(function (DataTable $table) {
+                $table->deleteMetadata(DataTable::ARCHIVE_STATE_METADATA_NAME);
+            });
+        }
 
         return $dataTable;
     }
