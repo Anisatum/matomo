@@ -344,14 +344,21 @@ class Evolution extends JqplotDataGenerator
 
         $archiveStates = [];
         $siteToday = Date::factoryInTimezone('today', $site->getTimezone())->getTimestamp();
+        $previousState = DataTable::ID_ARCHIVE_STATE_COMPLETE;
 
         foreach ($dataTableDates as $dataTableDate) {
             /** @var Period $period */
             $period = $dataTables[$dataTableDate]->getMetadata(DataTableFactory::TABLE_METADATA_PERIOD_INDEX);
             $state = $dataTables[$dataTableDate]->getMetadata(DataTable::ARCHIVE_STATE_METADATA_NAME);
 
-            if (false === $state || DataTable::ID_ARCHIVE_STATE_NODATA === $state) {
-                $state = DataTable::ID_ARCHIVE_STATE_COMPLETE;
+            if (false === $state) {
+                // Missing archive state information should only occur if no
+                // usable archive was found in the database. Treat a missing archive
+                // (for example if there are legitimately zero visits to a site)
+                // as complete unless it follows an incomplete archive.
+                $state = DataTable::ID_ARCHIVE_STATE_INCOMPLETE === $previousState
+                    ? DataTable::ID_ARCHIVE_STATE_INCOMPLETE
+                    : DataTable::ID_ARCHIVE_STATE_COMPLETE;
             }
 
             if ($siteToday <= $period->getDateEnd()->getTimestamp()) {
@@ -359,6 +366,7 @@ class Evolution extends JqplotDataGenerator
             }
 
             $archiveStates[$dataTableDate] = $state;
+            $previousState = $state;
         }
 
         $visualization->setArchiveStates(array_values($archiveStates));
