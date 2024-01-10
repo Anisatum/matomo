@@ -42,7 +42,6 @@ class PurgeOldArchiveDataTest extends IntegrationTestCase
         PurgeOldArchiveData::$todayOverride = Date::factory('2015-02-27');
 
         $archivePurger = new ArchivePurger();
-        $archivePurger->setTodayDate(Date::factory('2015-02-27'));
         $archivePurger->setYesterdayDate(Date::factory('2015-02-26'));
         $archivePurger->setNow(Date::factory('2015-02-27 08:00:00')->getTimestamp());
 

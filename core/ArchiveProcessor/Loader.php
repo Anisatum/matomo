@@ -45,11 +45,6 @@ class Loader
     private $invalidator;
 
     /**
-     * @var \Matomo\Cache\Cache
-     */
-    private $cache;
-
-    /**
      * @var LoggerInterface
      */
     private $logger;
@@ -74,7 +69,6 @@ class Loader
         $this->params = $params;
         $this->invalidateBeforeArchiving = $invalidateBeforeArchiving;
         $this->invalidator = StaticContainer::get(ArchiveInvalidator::class);
-        $this->cache = Cache::getTransientCache();
         $this->logger = StaticContainer::get(LoggerInterface::class);
         $this->rawLogDao = new RawLogDao();
         $this->dataAccessModel = new Model();

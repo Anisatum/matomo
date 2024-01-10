@@ -51,7 +51,6 @@ class ArchivePurgerTest extends IntegrationTestCase
         $this->february = self::$fixture->february;
 
         $this->archivePurger = new ArchivePurger();
-        $this->archivePurger->setTodayDate(Date::factory('2015-02-27'));
         $this->archivePurger->setYesterdayDate(Date::factory('2015-02-26'));
         $this->archivePurger->setNow(Date::factory('2015-02-27 08:00:00')->getTimestamp());
 

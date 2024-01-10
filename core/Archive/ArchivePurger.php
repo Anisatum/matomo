@@ -51,13 +51,6 @@ class ArchivePurger
     private $yesterday;
 
     /**
-     * Date to use for 'today'. Exists so tests can override this value.
-     *
-     * @var $today
-     */
-    private $today;
-
-    /**
      * Date to use for 'now'. Exists so tests can override this value.
      *
      * @var int
@@ -76,7 +69,6 @@ class ArchivePurger
         $this->purgeCustomRangesOlderThan = $purgeCustomRangesOlderThan ?: self::getDefaultCustomRangeToPurgeAgeThreshold();
 
         $this->yesterday = Date::factory('yesterday');
-        $this->today = Date::factory('today');
         $this->now = time();
         $this->logger = $logger ?: StaticContainer::get(LoggerInterface::class);
     }
@@ -302,16 +294,6 @@ class ArchivePurger
     public function setYesterdayDate(Date $yesterday)
     {
         $this->yesterday = $yesterday;
-    }
-
-    /**
-     * For tests.
-     *
-     * @param Date $today
-     */
-    public function setTodayDate(Date $today)
-    {
-        $this->today = $today;
     }
 
     /**
