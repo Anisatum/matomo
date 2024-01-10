@@ -17,6 +17,7 @@ use Symfony\Component\Console\Tester\ApplicationTester;
 
 /**
  * @group Core
+ * @group PurgeOldArchiveDataTest
  */
 class PurgeOldArchiveDataTest extends IntegrationTestCase
 {
@@ -74,11 +75,11 @@ class PurgeOldArchiveDataTest extends IntegrationTestCase
         $this->assertEquals(0, $result, $this->getCommandDisplayOutputErrorMessage());
 
         self::$fixture->assertInvalidatedArchivesPurged(self::$fixture->february);
-        self::$fixture->assertTemporaryArchivesPurged($isBrowserTriggeredArchivingEnabled = true, self::$fixture->february);
+        self::$fixture->assertTemporaryArchivesPurged(self::$fixture->february);
         self::$fixture->assertCustomRangesPurged(self::$fixture->february);
 
         self::$fixture->assertInvalidatedArchivesPurged(self::$fixture->january);
-        self::$fixture->assertTemporaryArchivesPurged($isBrowserTriggeredArchivingEnabled = true, self::$fixture->january);
+        self::$fixture->assertTemporaryArchivesPurged(self::$fixture->january);
         self::$fixture->assertCustomRangesPurged(self::$fixture->january);
     }
 
@@ -92,7 +93,7 @@ class PurgeOldArchiveDataTest extends IntegrationTestCase
         $this->assertEquals(0, $result, $this->getCommandDisplayOutputErrorMessage());
 
         self::$fixture->assertInvalidatedArchivesPurged(self::$fixture->february);
-        self::$fixture->assertTemporaryArchivesPurged($isBrowserTriggeredArchivingEnabled = true, self::$fixture->february);
+        self::$fixture->assertTemporaryArchivesPurged(self::$fixture->february);
         self::$fixture->assertCustomRangesPurged(self::$fixture->february);
 
         self::$fixture->assertInvalidatedArchivesNotPurged(self::$fixture->january);
@@ -111,7 +112,7 @@ class PurgeOldArchiveDataTest extends IntegrationTestCase
         $this->assertEquals(0, $result, $this->getCommandDisplayOutputErrorMessage());
 
         self::$fixture->assertInvalidatedArchivesPurged(self::$fixture->january);
-        self::$fixture->assertTemporaryArchivesPurged($isBrowserTriggeredArchivingEnabled = true, self::$fixture->january);
+        self::$fixture->assertTemporaryArchivesPurged(self::$fixture->january);
         self::$fixture->assertCustomRangesPurged(self::$fixture->january);
 
         self::$fixture->assertInvalidatedArchivesNotPurged(self::$fixture->february);

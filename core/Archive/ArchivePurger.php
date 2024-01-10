@@ -18,10 +18,7 @@ use Piwik\Piwik;
 use Piwik\Log\LoggerInterface;
 
 /**
- * Service that purges temporary, error-ed, invalid and custom range archives from archive tables.
- *
- * Temporary archives are purged if they were archived before a specific time. The time is dependent
- * on whether browser triggered archiving is enabled or not.
+ * Service that purges error-ed, invalid and custom range archives from archive tables.
  *
  * Error-ed archives are purged w/o constraint.
  *
@@ -105,17 +102,16 @@ class ArchivePurger
 
     /**
      * Removes the outdated archives for the given month.
-     * (meaning they are marked with a done flag of ArchiveWriter::DONE_OK_TEMPORARY or ArchiveWriter::DONE_ERROR)
+     * (meaning they are marked with a done flag of ArchiveWriter::DONE_ERROR)
      *
      * @param Date $dateStart Only the month will be used
      * @return int Returns the total number of rows deleted.
      */
     public function purgeOutdatedArchives(Date $dateStart)
     {
-        $purgeArchivesOlderThan = $this->getOldestTemporaryArchiveToKeepThreshold();
         $deletedRowCount = 0;
+        $idArchivesToDelete = $this->getOutdatedArchiveIds($dateStart);
 
-        $idArchivesToDelete = $this->getOutdatedArchiveIds($dateStart, $purgeArchivesOlderThan);
         if (!empty($idArchivesToDelete)) {
             $deletedRowCount = $this->deleteArchiveIds($dateStart, $idArchivesToDelete);
 
@@ -127,8 +123,7 @@ class ArchivePurger
             $this->logger->debug("No outdated archives found in archive numeric table for {date}.", array('date' => $dateStart));
         }
 
-        $this->logger->debug("Purging temporary archives: done [ purged archives older than {date} in {yearMonth} ] [Deleted IDs count: {deletedIds}]", array(
-            'date' => $purgeArchivesOlderThan,
+        $this->logger->debug("Purging outdated archives: done [Deleted IDs count: {deletedIds}]", array(
             'yearMonth' => $dateStart->toString('Y-m'),
             'deletedIds' => count($idArchivesToDelete),
         ));
@@ -200,13 +195,13 @@ class ArchivePurger
         );
     }
 
-    protected function getOutdatedArchiveIds(Date $date, $purgeArchivesOlderThan)
+    protected function getOutdatedArchiveIds(Date $date)
     {
         $archiveTable = ArchiveTableCreator::getNumericTable($date);
+        $result = $this->model->getErroredArchives($archiveTable);
 
-        $result = $this->model->getTemporaryArchivesOlderThan($archiveTable, $purgeArchivesOlderThan);
+        $idArchivesToDelete = [];
 
-        $idArchivesToDelete = array();
         if (!empty($result)) {
             foreach ($result as $row) {
                 $idArchivesToDelete[] = $row['idarchive'];

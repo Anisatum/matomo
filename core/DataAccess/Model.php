@@ -340,15 +340,13 @@ class Model
         return Db::query($sql, $bind);
     }
 
-    public function getTemporaryArchivesOlderThan($archiveTable, $purgeArchivesOlderThan)
+    public function getErroredArchives($archiveTable)
     {
         $query = "SELECT idarchive FROM " . $archiveTable . "
                   WHERE name LIKE 'done%'
-                    AND ((  value = " . ArchiveWriter::DONE_OK_TEMPORARY . "
-                            AND ts_archived < ?)
-                         OR value = " . ArchiveWriter::DONE_ERROR . ")";
+                    AND value = " . ArchiveWriter::DONE_ERROR;
 
-        return Db::fetchAll($query, array($purgeArchivesOlderThan));
+        return Db::fetchAll($query);
     }
 
     public function deleteArchivesWithPeriod($numericTable, $blobTable, $period, $date)
@@ -559,10 +557,10 @@ class Model
     }
 
     /**
-     * Get a list of IDs of archives that don't have any matching rows in the site table. Excludes temporary archives
-     * that may still be in use, as specified by the $oldestToKeep passed in.
+     * Get a list of IDs of archives that don't have any matching rows in the site table.
+     *
      * @param string $archiveTableName
-     * @param string $oldestToKeep Datetime string
+     *
      * @return array of IDs
      */
     public function getArchiveIdsForDeletedSites($archiveTableName)
@@ -595,11 +593,13 @@ class Model
     }
 
     /**
-     * Get a list of IDs of archives with segments that no longer exist in the DB. Excludes temporary archives that
-     * may still be in use, as specified by the $oldestToKeep passed in.
+     * Get a list of IDs of archives with segments that no longer exist in the DB.
+     * Excludes archives that may still be in use, as specified by the $oldestToKeep passed in.
+     *
      * @param string $archiveTableName
      * @param array $segments  List of segments to match against
      * @param string $oldestToKeep Datetime string
+     *
      * @return array With keys idarchive, name, idsite
      */
     public function getArchiveIdsForSegments($archiveTableName, array $segments, $oldestToKeep)

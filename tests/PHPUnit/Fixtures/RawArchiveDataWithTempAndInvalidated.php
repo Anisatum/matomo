@@ -16,7 +16,7 @@ use Piwik\Tests\Framework\Fixture;
 /**
  * Fixture that inserts rows into archive tables for Jan. 2015 + Feb. 2015. The rows include
  * done rows + metrics/blobs, and the done rows have values of DONE_OK_TEMPORARY,
- * DONE_OK, DONE_INVALIDATED. There are also some custom range archives.
+ * DONE_OK, DONE_INVALIDATED, DONE_ERROR. There are also some custom range archives.
  *
  * This class is used to test archive purging.
  */
@@ -25,12 +25,12 @@ class RawArchiveDataWithTempAndInvalidated extends Fixture
     const ROWS_PER_ARCHIVE = 5;
 
     private static $dummyArchiveData = array(
-        // outdated temporary
+        // error-ed
         array(
             'idarchive' => 1,
             'idsite' => 1,
             'name' => 'done',
-            'value' => ArchiveWriter::DONE_OK_TEMPORARY,
+            'value' => ArchiveWriter::DONE_ERROR,
             'date1' => '2015-02-03',
             'date2' => '2015-02-03',
             'period' => 1,
@@ -41,7 +41,7 @@ class RawArchiveDataWithTempAndInvalidated extends Fixture
             'idarchive' => 2,
             'idsite' => 2,
             'name' => 'doneDUMMYHASHSTR',
-            'value' => ArchiveWriter::DONE_OK_TEMPORARY,
+            'value' => ArchiveWriter::DONE_ERROR,
             'date1' => '2015-02-01',
             'date2' => '2015-02-31',
             'period' => 3,
@@ -52,7 +52,7 @@ class RawArchiveDataWithTempAndInvalidated extends Fixture
             'idarchive' => 3,
             'idsite' => 3,
             'name' => 'done',
-            'value' => ArchiveWriter::DONE_OK_TEMPORARY,
+            'value' => ArchiveWriter::DONE_ERROR,
             'date1' => '2015-02-04',
             'date2' => '2015-02-10',
             'period' => 2,
@@ -63,15 +63,15 @@ class RawArchiveDataWithTempAndInvalidated extends Fixture
             'idarchive' => 4,
             'idsite' => 1,
             'name' => 'doneDUMMYHASHSTR',
-            'value' => ArchiveWriter::DONE_OK_TEMPORARY,
+            'value' => ArchiveWriter::DONE_ERROR,
             'date1' => '2015-02-15',
             'date2' => '2015-02-15',
             'period' => 1,
             'ts_archived' => '2015-02-15 08:12:13'
         ),
 
-        // valid temporary
-        array( // only valid
+        // temporary
+        array(
             'idarchive' => 5,
             'idsite' => 1,
             'name' => 'done',
@@ -501,14 +501,9 @@ class RawArchiveDataWithTempAndInvalidated extends Fixture
         return $archiveDate->toString('Y-m') . '-' . Date::factory($dateString)->toString('d');
     }
 
-    public function assertTemporaryArchivesPurged($isBrowserTriggeredArchivingEnabled, Date $date)
+    public function assertTemporaryArchivesPurged(Date $date)
     {
-        if ($isBrowserTriggeredArchivingEnabled) {
-            $expectedPurgedArchives = array(1,2,3,4,6,7,10); // only archives from 2 hours before "now" are purged
-        } else {
-            $expectedPurgedArchives = array(1,2,3,4,7); // only archives before start of "yesterday" are purged
-        }
-
+        $expectedPurgedArchives = array(1,2,3,4);
         $this->assertArchivesDoNotExist($expectedPurgedArchives, $date);
     }
 
@@ -530,12 +525,9 @@ class RawArchiveDataWithTempAndInvalidated extends Fixture
         $this->assertArchivesExist($expectedPresentArchives, $date);
     }
 
-    public function assertCustomRangesNotPurged(Date $date, $includeTemporary = true)
+    public function assertCustomRangesNotPurged(Date $date)
     {
-        $expectedPresentArchives = array(8, 9);
-        if ($includeTemporary) {
-            $expectedPresentArchives[] = 10;
-        }
+        $expectedPresentArchives = array(8, 9, 10);
         $this->assertArchivesExist($expectedPresentArchives, $date);
     }
 

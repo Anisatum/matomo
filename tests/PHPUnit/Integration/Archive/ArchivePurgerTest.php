@@ -61,34 +61,18 @@ class ArchivePurgerTest extends IntegrationTestCase
         self::$fixture->assertInvalidatedArchivesNotPurged(self::$fixture->february);
     }
 
-    public function test_purgeOutdatedArchives_PurgesCorrectTemporaryArchives_WhileKeepingNewerTemporaryArchives_WithBrowserTriggeringEnabled()
+    public function test_purgeOutdatedArchives_PurgesCorrectTemporaryArchives()
     {
         $this->enableBrowserTriggeredArchiving();
 
         $deletedRowCount = $this->archivePurger->purgeOutdatedArchives($this->february);
 
-        self::$fixture->assertTemporaryArchivesPurged($browserTriggeringEnabled = true, $this->february);
-
-        self::$fixture->assertCustomRangesNotPurged($this->february, $includeTemporary = false);
-        self::$fixture->assertTemporaryArchivesNotPurged($this->january);
-
-        $this->assertEquals(7 * RawArchiveDataWithTempAndInvalidated::ROWS_PER_ARCHIVE, $deletedRowCount);
-
-        $this->checkNoDuplicateArchives();
-    }
-
-    public function test_purgeOutdatedArchives_PurgesCorrectTemporaryArchives_WhileKeepingNewerTemporaryArchives_WithBrowserTriggeringDisabled()
-    {
-        $this->disableBrowserTriggeredArchiving();
-
-        $deletedRowCount = $this->archivePurger->purgeOutdatedArchives($this->february);
-
-        self::$fixture->assertTemporaryArchivesPurged($browserTriggeringEnabled = false, $this->february);
+        self::$fixture->assertTemporaryArchivesPurged($this->february);
 
         self::$fixture->assertCustomRangesNotPurged($this->february);
         self::$fixture->assertTemporaryArchivesNotPurged($this->january);
 
-        $this->assertEquals(5 * RawArchiveDataWithTempAndInvalidated::ROWS_PER_ARCHIVE, $deletedRowCount);
+        $this->assertEquals(4 * RawArchiveDataWithTempAndInvalidated::ROWS_PER_ARCHIVE, $deletedRowCount);
 
         $this->checkNoDuplicateArchives();
     }
