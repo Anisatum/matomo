@@ -36,10 +36,21 @@ class ArchiveProcessorTest extends ArchiveProcessor\Loader
     {
         return $this->params;
     }
+
+    public function public_getMinTimeArchiveProcessed()
+    {
+        return $this->getMinTimeArchiveProcessed();
+    }
+
+    public function public_isArchiveTemporary(): bool
+    {
+        return $this->isArchiveTemporary();
+    }
 }
 
 /**
  * @group Core
+ * @group ArchiveProcessingTest
  */
 class ArchiveProcessingTest extends IntegrationTestCase
 {
@@ -157,6 +168,10 @@ class ArchiveProcessingTest extends IntegrationTestCase
         // min finished timestamp considered when looking at archive timestamp
         $timeout = Rules::getTodayArchiveTimeToLive();
         $this->assertTrue($timeout >= 10);
+        $dateMinArchived = $now - $timeout;
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed());
+
+        $this->assertTrue($archiveProcessor->public_isArchiveTemporary());
     }
 
     private function compareTimestamps($expected, $processed)
@@ -173,8 +188,13 @@ class ArchiveProcessingTest extends IntegrationTestCase
     {
         $archiveProcessor = $this->_createArchiveProcessor('day', '2010-01-01', 'UTC');
 
+        // min finished timestamp considered when looking at archive timestamp
+        $dateMinArchived = Date::factory('2010-01-02')->getTimestamp();
+        $this->assertEquals($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed() + 1);
+
         $this->assertEquals('2010-01-01 00:00:00', $archiveProcessor->getParams()->getDateStart()->getDateStartUTC());
         $this->assertEquals('2010-01-01 23:59:59', $archiveProcessor->getParams()->getDateEnd()->getDateEndUTC());
+        $this->assertFalse($archiveProcessor->public_isArchiveTemporary());
     }
 
     /**
@@ -185,8 +205,13 @@ class ArchiveProcessingTest extends IntegrationTestCase
         $timezone = 'UTC+5.5';
         $archiveProcessor = $this->_createArchiveProcessor('day', '2010-01-01', $timezone);
 
+        // min finished timestamp considered when looking at archive timestamp
+        $dateMinArchived = Date::factory('2010-01-01 18:30:00');
+        $this->assertEquals($dateMinArchived->getTimestamp(), $archiveProcessor->public_getMinTimeArchiveProcessed() + 1);
+
         $this->assertEquals('2009-12-31 18:30:00', $archiveProcessor->getParams()->getDateStart()->getDateStartUTC());
         $this->assertEquals('2010-01-01 18:29:59', $archiveProcessor->getParams()->getDateEnd()->getDateEndUTC());
+        $this->assertFalse($archiveProcessor->public_isArchiveTemporary());
     }
 
     /**
@@ -197,8 +222,13 @@ class ArchiveProcessingTest extends IntegrationTestCase
         $timezone = 'UTC-5.5';
         $archiveProcessor = $this->_createArchiveProcessor('month', '2010-01-02', $timezone);
 
+        // min finished timestamp considered when looking at archive timestamp
+        $dateMinArchived = Date::factory('2010-02-01 05:30:00');
+        $this->assertEquals($dateMinArchived->getTimestamp(), $archiveProcessor->public_getMinTimeArchiveProcessed() + 1);
+
         $this->assertEquals('2010-01-01 05:30:00', $archiveProcessor->getParams()->getDateStart()->getDateStartUTC());
         $this->assertEquals('2010-02-01 05:29:59', $archiveProcessor->getParams()->getDateEnd()->getDateEndUTC());
+        $this->assertFalse($archiveProcessor->public_isArchiveTemporary());
     }
 
     /**
@@ -216,12 +246,20 @@ class ArchiveProcessingTest extends IntegrationTestCase
         $archiveProcessor = $this->_createArchiveProcessor('day', $dateLabel, $siteTimezone);
         $archiveProcessor->time = $now;
 
+        // we look at anything processed within the time to live range
+        $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed());
+        $this->assertTrue($archiveProcessor->public_isArchiveTemporary());
+
         // when browsers don't trigger archives...
         Rules::setBrowserTriggerArchiving(false);
         // ...we force ArchiveProcessor to fetch any of the most recent archive
+        $dateMinArchived = false;
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed());
 
         $this->assertEquals(date('Y-m-d', $timestamp) . ' 01:00:00', $archiveProcessor->getParams()->getDateStart()->getDateStartUTC());
         $this->assertEquals(date('Y-m-d', $timestamp + 86400) . ' 00:59:59', $archiveProcessor->getParams()->getDateEnd()->getDateEndUTC());
+        $this->assertTrue($archiveProcessor->public_isArchiveTemporary());
     }
 
     /**
@@ -243,15 +281,24 @@ class ArchiveProcessingTest extends IntegrationTestCase
         $archiveProcessor = $this->_createArchiveProcessor('day', $dateLabel, $siteTimezone);
         $archiveProcessor->time = $now;
 
+        // we look at anything processed within the time to live range
+        $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed());
+        $this->assertTrue($archiveProcessor->public_isArchiveTemporary());
+
         // when browsers don't trigger archives...
         Rules::setBrowserTriggerArchiving(false);
         // ...we force ArchiveProcessor to fetch any of the most recent archive
+        $dateMinArchived = false;
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed());
 
         // this test varies with DST
         $this->assertTrue($archiveProcessor->getParams()->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp - 86400) . ' 22:00:00' ||
             $archiveProcessor->getParams()->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp - 86400) . ' 23:00:00');
         $this->assertTrue($archiveProcessor->getParams()->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp) . ' 21:59:59' ||
             $archiveProcessor->getParams()->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp) . ' 22:59:59');
+
+        $this->assertTrue($archiveProcessor->public_isArchiveTemporary());
     }
 
     /**
@@ -273,14 +320,24 @@ class ArchiveProcessingTest extends IntegrationTestCase
         $archiveProcessor = $this->_createArchiveProcessor('day', $dateLabel, $siteTimezone);
         $archiveProcessor->time = $now;
 
+        // we look at anything processed within the time to live range
+        $dateMinArchived = $now - Rules::getTodayArchiveTimeToLive();
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed() );
+        $this->assertTrue($archiveProcessor->public_isArchiveTemporary());
+
         // when browsers don't trigger archives...
         Rules::setBrowserTriggerArchiving(false);
+        // ...we force ArchiveProcessor to fetch any of the most recent archive
+        $dateMinArchived = false;
+        $this->compareTimestamps($dateMinArchived, $archiveProcessor->public_getMinTimeArchiveProcessed());
 
         // this test varies with DST
         $this->assertTrue($archiveProcessor->getParams()->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp) . ' 04:00:00' ||
             $archiveProcessor->getParams()->getDateStart()->getDateStartUTC() == date('Y-m-d', $timestamp) . ' 05:00:00');
         $this->assertTrue($archiveProcessor->getParams()->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp + 86400) . ' 03:59:59' ||
             $archiveProcessor->getParams()->getDateEnd()->getDateEndUTC() == date('Y-m-d', $timestamp + 86400) . ' 04:59:59');
+
+        $this->assertTrue($archiveProcessor->public_isArchiveTemporary());
     }
 
     /**

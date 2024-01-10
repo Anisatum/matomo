@@ -32,6 +32,7 @@ class ArchiveWriter
      * @var int
      */
     const DONE_OK = 1;
+
     /**
      * Flag stored at the start of the archiving
      * When requesting an Archive, we make sure that non-finished archive are not considered valid
@@ -42,13 +43,9 @@ class ArchiveWriter
 
     /**
      * Flag indicates the archive is over a period that is not finished, eg. the current day, current week, etc.
-     * Archives flagged will be regularly purged from the DB.
-     *
-     * This flag is deprecated, new archives should not be written as temporary.
+     * Archives flagged will be treated as invalidated during archiving.
      *
      * @var int
-     * @deprecated it should not be used anymore as temporary archives have been removed. It still exists though for
-     *             historical reasons.
      */
     const DONE_OK_TEMPORARY = 3;
 
@@ -123,12 +120,17 @@ class ArchiveWriter
     private $dateStart;
 
     /**
+     * @var bool
+     */
+    private $isArchiveTemporary;
+
+    /**
      * ArchiveWriter constructor.
      * @param ArchiveProcessor\Parameters $params
-     * @param bool $isArchiveTemporary Deprecated. Has no effect.
+     * @param bool $isArchiveTemporary
      * @throws Exception
      */
-    public function __construct(ArchiveProcessor\Parameters $params)
+    public function __construct(ArchiveProcessor\Parameters $params, bool $isArchiveTemporary = false)
     {
         $this->idArchive = false;
         $this->idSite    = $params->getSite()->getId();
@@ -138,6 +140,7 @@ class ArchiveWriter
 
         $idSites = [$this->idSite];
         $this->doneFlag = Rules::getDoneStringFlagFor($idSites, $this->segment, $this->period->getLabel(), $params->getRequestedPlugin());
+        $this->isArchiveTemporary = $isArchiveTemporary;
 
         $this->dateStart = $this->period->getDateStart();
     }
@@ -197,7 +200,12 @@ class ArchiveWriter
         $numericTable = $this->getTableNumeric();
         $idArchive    = $this->getIdArchive();
 
-        $doneValue = $this->parameters->isPartialArchive() ? self::DONE_PARTIAL : self::DONE_OK;
+        $doneValue = $this->isArchiveTemporary ? self::DONE_OK_TEMPORARY : self::DONE_OK;
+
+        if ($this->parameters->isPartialArchive()) {
+            $doneValue = self::DONE_PARTIAL;
+        }
+
         $this->checkDoneValueIsOnlyPartialForPluginArchives($doneValue); // check and log
 
         $this->getModel()->updateArchiveStatus($numericTable, $idArchive, $this->doneFlag, $doneValue);

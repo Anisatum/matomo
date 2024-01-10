@@ -572,6 +572,60 @@ class CronArchiveTest extends IntegrationTestCase
         $this->assertTrue($actual);
     }
 
+    public function test_canWeSkipInvalidatingBecauseThereIsAUsablePeriod_returnsTrueIfTemporaryCheckFindsPermanentArchive()
+    {
+        Rules::setBrowserTriggerArchiving(false);
+        Fixture::createWebsite('2019-04-04 03:45:45');
+        Date::$now = strtotime('2020-04-05');
+
+        $archiver = new CronArchive();
+        $params = new Parameters(
+            new Site(1),
+            Factory::build('day', '2020-04-01'),
+            new Segment('', [1])
+        );
+
+        $tsArchived = Date::now()->subDay(4)->getDatetime();
+        $archiveTable = ArchiveTableCreator::getNumericTable(Date::factory('2020-04-01'));
+
+        Db::query(
+            "INSERT INTO $archiveTable (idarchive, idsite, period, date1, date2, name, value, ts_archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                1, 1, 1, '2020-04-01', '2020-04-01', 'done', ArchiveWriter::DONE_OK, $tsArchived
+            ]
+        );
+
+        $actual = $archiver->canWeSkipInvalidatingBecauseThereIsAUsablePeriod($params, true, true);
+        $this->assertTrue($actual);
+    }
+
+    public function test_canWeSkipInvalidatingBecauseThereIsAUsablePeriod_returnsFalseIfTemporaryCheckFindsTemporaryArchive()
+    {
+        Rules::setBrowserTriggerArchiving(false);
+        Fixture::createWebsite('2019-04-04 03:45:45');
+        Date::$now = strtotime('2020-04-05');
+
+        $archiver = new CronArchive();
+        $params = new Parameters(
+            new Site(1),
+            Factory::build('day', '2020-04-01'),
+            new Segment('', [1])
+        );
+
+        $tsArchived = Date::now()->subDay(4)->getDatetime();
+        $archiveTable = ArchiveTableCreator::getNumericTable(Date::factory('2020-04-01'));
+
+        Db::query(
+            "INSERT INTO $archiveTable (idarchive, idsite, period, date1, date2, name, value, ts_archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                1, 1, 1, '2020-04-01', '2020-04-01', 'done', ArchiveWriter::DONE_OK_TEMPORARY, $tsArchived
+            ]
+        );
+
+        $actual = $archiver->canWeSkipInvalidatingBecauseThereIsAUsablePeriod($params, true, true);
+        $this->assertFalse($actual);
+    }
+
     public function test_getColumnNamesFromTable()
     {
         Fixture::createWebsite('2014-12-12 00:01:02');
@@ -733,6 +787,7 @@ Checking for queued invalidations...
   Will invalidate archived reports for 2019-12-02 for following websites ids: 1
   Today archive can be skipped due to no visits for idSite = 1, skipping invalidation...
   Yesterday archive can be skipped due to no visits for idSite = 1, skipping invalidation...
+  Will invalidate temporary archived reports between 2020-02-02 and 2020-01-06 in site ID = 1's timezone (2020-02-03 00:00:00).
 Done invalidating
 Processing invalidation: [idinvalidation = 269, idsite = 1, period = day(2019-12-12 - 2019-12-12), name = donee0512c03f7c20af6ef96a8d792c6bb9f, segment = actions>=2].
 Processing invalidation: [idinvalidation = 268, idsite = 1, period = day(2019-12-11 - 2019-12-11), name = donee0512c03f7c20af6ef96a8d792c6bb9f, segment = actions>=2].
@@ -843,6 +898,7 @@ Checking for queued invalidations...
   Will invalidate archived reports for 2019-12-10 for following websites ids: 2
   Today archive can be skipped due to no visits for idSite = 2, skipping invalidation...
   Yesterday archive can be skipped due to no visits for idSite = 2, skipping invalidation...
+  Will invalidate temporary archived reports between 2020-02-02 and 2020-01-06 in site ID = 2's timezone (2020-02-03 00:00:00).
 Done invalidating
 Processing invalidation: [idinvalidation = 1, idsite = 2, period = day(2019-12-11 - 2019-12-11), name = done, segment = ].
 Processing invalidation: [idinvalidation = 5, idsite = 2, period = day(2019-12-10 - 2019-12-10), name = done, segment = ].
@@ -929,6 +985,7 @@ Start processing archives for site 1.
 Checking for queued invalidations...
   Today archive can be skipped due to no visits for idSite = 1, skipping invalidation...
   Yesterday archive can be skipped due to no visits for idSite = 1, skipping invalidation...
+  Will invalidate temporary archived reports between 2020-02-02 and 2020-01-06 in site ID = 1's timezone (2020-02-03 00:00:00).
 Done invalidating
 No next invalidated archive.
 LOG;

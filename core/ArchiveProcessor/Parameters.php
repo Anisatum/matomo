@@ -254,14 +254,15 @@ class Parameters
         return count($this->getIdSites()) == 1;
     }
 
-    public function logStatusDebug()
+    public function logStatusDebug(bool $isArchiveTemporary = false)
     {
-        $temporary = 'definitive archive';
+        $status = $isArchiveTemporary ? 'temporary archive' : 'definitive archive';
+
         Log::debug(
             "%s archive, idSite = %d (%s), segment '%s', plugin = '%s', report = '%s', UTC datetime [%s -> %s]",
             $this->getPeriod()->getLabel(),
             $this->getSite()->getId(),
-            $temporary,
+            $status,
             $this->getSegment()->getString(),
             $this->getRequestedPlugin(),
             $this->getArchiveOnlyReport(),

@@ -24,6 +24,7 @@ use Piwik\CronArchive\QueueConsumer;
 use Piwik\CronArchive\SharedSiteIds;
 use Piwik\CronArchive\StopArchiverException;
 use Piwik\DataAccess\ArchiveSelector;
+use Piwik\DataAccess\ArchiveWriter;
 use Piwik\DataAccess\Model;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
 use Piwik\Metrics\Formatter;
@@ -68,6 +69,9 @@ class CronArchive
 
     // Show only first N characters from Piwik API output in case of errors
     const TRUNCATE_ERROR_MESSAGE_SUMMARY = 6000;
+
+    // Number of days (excluding today) to look for old temporary archives
+    const TEMPORARY_ARCHIVE_INVALIDATION_DAYS = 27;
 
     // By default, we only process the current week/month/year at most once an hour
     private $todayArchiveTimeToLive;
@@ -431,7 +435,7 @@ class CronArchive
         $urls = [];
         $archivesBeingQueried = [];
         foreach ($archives as $index => $archive) {
-            list($url, $segment, $plugin) = $this->generateUrlToArchiveFromArchiveInfo($archive);
+            [$url, $segment, $plugin] = $this->generateUrlToArchiveFromArchiveInfo($archive);
             if (empty($url)) {
                 // can happen if, for example, a segment was deleted after an archive was invalidated
                 // in this case, we can just delete the archive entirely.
@@ -861,6 +865,9 @@ class CronArchive
         // (means the day has changed and there might be more visits that weren't processed)
         $this->invalidateRecentDate('yesterday', $idSiteToInvalidate);
 
+        // invalidate temporary archives
+        $this->invalidateTemporaryArchives($idSiteToInvalidate);
+
         // invalidate range archives
         $dates = $this->getCustomDateRangeToPreProcess($idSiteToInvalidate);
 
@@ -908,8 +915,54 @@ class CronArchive
         $this->invalidateWithSegments([$idSite], $date->toString(), 'day', false, $doNotIncludeTtlInExistingArchiveCheck = $isYesterday);
     }
 
-    private function invalidateWithSegments($idSites, $date, $period, $_forceInvalidateNonexistent = false, $doNotIncludeTtlInExistingArchiveCheck = false)
+    private function invalidateTemporaryArchives($idSite): void
     {
+        $timezone = Site::getTimezoneFor($idSite);
+        $today = Date::factoryInTimezone('today', $timezone);
+
+        $temporaryStart = $today->subDay(1)->toString();
+        $temporaryEnd = $today->subDay(1 + self::TEMPORARY_ARCHIVE_INVALIDATION_DAYS)->toString();
+
+        $this->logger->info("  Will invalidate temporary archived reports between $temporaryStart and $temporaryEnd in site ID = {idSite}'s timezone ({date}).", [
+            'idSite' => $idSite,
+            'date' => $today->getDatetime(),
+        ]);
+
+        for ($i = 0; $i < self::TEMPORARY_ARCHIVE_INVALIDATION_DAYS; $i++) {
+            $date = $today->subDay(1 + $i);
+            $period = PeriodFactory::build('day', $date);
+
+            $params = new Parameters(
+                new Site($idSite),
+                $period,
+                new Segment('', [$idSite], $period->getDateStart(), $period->getDateEnd())
+            );
+
+            $loader = new Loader($params);
+
+            if ($loader->canSkipThisArchive()) {
+                continue;
+            }
+
+            $this->invalidateWithSegments(
+                [$idSite],
+                $date->toString(),
+                'day',
+                false,
+                true,
+                true
+            );
+        }
+    }
+
+    private function invalidateWithSegments(
+        $idSites,
+        $date,
+        $period,
+        $_forceInvalidateNonexistent = false,
+        $doNotIncludeTtlInExistingArchiveCheck = false,
+        $invalidateOnlyTemporaryArchives = false
+    ) {
         if ($date instanceof Date) {
             $date = $date->toString();
         }
@@ -936,19 +989,32 @@ class CronArchive
                     $periodObj->getDateTimeEnd()->setTimezone($site->getTimezone())
                 )
             );
-            if ($this->canWeSkipInvalidatingBecauseThereIsAUsablePeriod($params, $doNotIncludeTtlInExistingArchiveCheck)) {
+
+            $invalidationCanBeSkipped = $this->canWeSkipInvalidatingBecauseThereIsAUsablePeriod(
+                $params,
+                $doNotIncludeTtlInExistingArchiveCheck,
+                $invalidateOnlyTemporaryArchives
+            );
+
+            if ($invalidationCanBeSkipped) {
                 $this->logger->debug('  Found usable archive for {archive}, skipping invalidation.', ['archive' => $params]);
             } else {
-                $this->getApiToInvalidateArchivedReport()->invalidateArchivedReports($idSite, $date, $period, $segment = false, $cascadeDown = false,
-                    $_forceInvalidateNonexistent);
+                $this->getApiToInvalidateArchivedReport()->invalidateArchivedReports(
+                    $idSite,
+                    $date,
+                    $period,
+                    $segment = false,
+                    $cascadeDown = false,
+                    $_forceInvalidateNonexistent
+                );
             }
 
             foreach ($this->segmentArchiving->getAllSegmentsToArchive($idSite) as $segmentDefinition) {
-
-               // check if the segment is available
+                // check if the segment is available
                 if (!$this->isSegmentAvailable($segmentDefinition, [$idSite])) {
                     continue;
                 }
+
                 $params = new Parameters(
                     $site,
                     $periodObj,
@@ -959,7 +1025,14 @@ class CronArchive
                         $periodObj->getDateTimeEnd()->setTimezone($site->getTimezone())
                     )
                 );
-                if ($this->canWeSkipInvalidatingBecauseThereIsAUsablePeriod($params, $doNotIncludeTtlInExistingArchiveCheck)) {
+
+                $invalidationCanBeSkipped = $this->canWeSkipInvalidatingBecauseThereIsAUsablePeriod(
+                    $params,
+                    $doNotIncludeTtlInExistingArchiveCheck,
+                    $invalidateOnlyTemporaryArchives
+                );
+
+                if ($invalidationCanBeSkipped) {
                     $this->logger->debug('  Found usable archive for {archive}, skipping invalidation.', ['archive' => $params]);
                 } else {
                     if (empty($this->segmentArchiving)) {
@@ -979,8 +1052,14 @@ class CronArchive
                         }
                     }
 
-                    $this->getApiToInvalidateArchivedReport()->invalidateArchivedReports($idSite, $date, $period, $segmentDefinition,
-                        $cascadeDown = false, $_forceInvalidateNonexistent);
+                    $this->getApiToInvalidateArchivedReport()->invalidateArchivedReports(
+                        $idSite,
+                        $date,
+                        $period,
+                        $segmentDefinition,
+                        $cascadeDown = false,
+                        $_forceInvalidateNonexistent
+                    );
                 }
             }
         }
@@ -1011,8 +1090,11 @@ class CronArchive
      *
      * @params Parameters $params The parameters for the archive we want to invalidate.
      */
-    public function canWeSkipInvalidatingBecauseThereIsAUsablePeriod(Parameters $params, $doNotIncludeTtlInExistingArchiveCheck = false)
-    {
+    public function canWeSkipInvalidatingBecauseThereIsAUsablePeriod(
+        Parameters $params,
+        $doNotIncludeTtlInExistingArchiveCheck = false,
+        $invalidateOnlyTemporaryArchives = false
+    ) {
         $today = Date::factoryInTimezone('today', Site::getTimezoneFor($params->getSite()->getId()));
 
         $isYesterday = $params->getPeriod()->getLabel() == 'day' && $params->getPeriod()->getDateStart()->toString() == Date::factory('yesterday')->toString();
@@ -1026,6 +1108,10 @@ class CronArchive
         $archiveInfo = ArchiveSelector::getArchiveIdAndVisits($params, $minArchiveProcessedTime, $includeInvalidated = $isPeriodIncludesToday);
         $idArchive = $archiveInfo['idArchives'];
         $tsArchived = $archiveInfo['tsArchived'];
+
+        if ($invalidateOnlyTemporaryArchives && ArchiveWriter::DONE_OK_TEMPORARY == $archiveInfo['doneFlagValue']) {
+            return false;
+        }
 
         // day has changed since the archive was created, we need to reprocess it
         if ($isYesterday

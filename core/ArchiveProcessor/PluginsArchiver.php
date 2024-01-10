@@ -66,10 +66,16 @@ class PluginsArchiver
      */
     private $archiveWriter;
 
-    public function __construct(Parameters $params, ArchiveWriter $archiveWriter = null)
+    /**
+     * @var bool
+     */
+    private $isArchiveTemporary;
+
+    public function __construct(Parameters $params, ArchiveWriter $archiveWriter = null, $isArchiveTemporary = false)
     {
         $this->params = $params;
-        $this->archiveWriter = $archiveWriter ?: new ArchiveWriter($this->params);
+        $this->isArchiveTemporary = $isArchiveTemporary;
+        $this->archiveWriter = $archiveWriter ?: new ArchiveWriter($this->params, $this->isArchiveTemporary);
         $this->archiveWriter->initNewArchive();
 
         $this->logAggregator = new LogAggregator($params);
@@ -77,13 +83,12 @@ class PluginsArchiver
 
         $this->archiveProcessor = new ArchiveProcessor($this->params, $this->archiveWriter, $this->logAggregator);
 
-
         $shouldAggregateFromRawData = $this->params->isSingleSiteDayArchive();
 
         /**
          * Triggered to detect if the archiver should aggregate from raw data by using MySQL queries (when true)
          * or by aggregate archives (when false). Typically, data is aggregated from raw data for "day" period, and
-         * aggregregated from archives for all other periods.
+         * aggregated from archives for all other periods.
          *
          * @param bool $shouldAggregateFromRawData  Set to true, to aggregate from raw data, or false to aggregate multiple reports.
          * @param Parameters $params
@@ -214,7 +219,7 @@ class PluginsArchiver
 
     public function finalizeArchive()
     {
-        $this->params->logStatusDebug();
+        $this->params->logStatusDebug($this->isArchiveTemporary);
         $this->archiveWriter->finalizeArchive();
         $idArchive = $this->archiveWriter->getIdArchive();
 
@@ -349,9 +354,14 @@ class PluginsArchiver
          * @param \Piwik\Plugin\Archiver &$archiver The newly created plugin archiver instance.
          * @param string $pluginName The name of plugin of which archiver instance was created.
          * @param array $this->params Array containing archive parameters (Site, Period, Date and Segment)
-         * @param bool false This parameter is deprecated and will be removed.
+         * @param bool $this->isArchiveTemporary Flag indicating whether the archive being processed
+         *                                       is temporary (ie. the period isn't finished yet)
+         *                                       or final (the period is already finished and in the past).
          */
-        Piwik::postEvent('Archiving.makeNewArchiverObject', array($archiver, $pluginName, $this->params, false));
+        Piwik::postEvent(
+            'Archiving.makeNewArchiverObject',
+            [$archiver, $pluginName, $this->params, $this->isArchiveTemporary]
+        );
 
         return $archiver;
     }

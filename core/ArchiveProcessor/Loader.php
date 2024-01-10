@@ -35,6 +35,15 @@ class Loader
     private static $archivingDepth = 0;
 
     /**
+     * Is the current archive temporary, i.e.
+     * - today
+     * - current week / month / year
+     *
+     * @var bool|null
+     */
+    protected $isArchiveTemporary;
+
+    /**
      * @var Parameters
      */
     protected $params;
@@ -128,7 +137,7 @@ class Loader
         if (sizeof($data) == 2) {
             return $data;
         }
-        list($idArchives, $visits, $visitsConverted, $foundRecords) = $data;
+        [$idArchives, $visits, $visitsConverted, $foundRecords] = $data;
 
         // only lock meet those conditions
         if (ArchiveProcessor::$isRootArchivingRequest && !SettingsServer::isArchivePhpTriggered()) {
@@ -147,7 +156,7 @@ class Loader
                     return $data;
                 }
 
-                list($idArchives, $visits, $visitsConverted, $foundRecords) = $data;
+                [$idArchives, $visits, $visitsConverted, $foundRecords] = $data;
 
                 return $this->insertArchiveData($visits, $visitsConverted, $idArchives, $foundRecords);
             } finally {
@@ -175,8 +184,8 @@ class Loader
             $this->params->setFoundRequestedReports($foundRecords);
         }
 
-        list($visits, $visitsConverted) = $this->prepareCoreMetricsArchive($visits, $visitsConverted);
-        list($idArchive, $visits) = $this->prepareAllPluginsArchive($visits, $visitsConverted);
+        [$visits, $visitsConverted] = $this->prepareCoreMetricsArchive($visits, $visitsConverted);
+        [$idArchive, $visits] = $this->prepareAllPluginsArchive($visits, $visitsConverted);
 
         if ($this->isThereSomeVisits($visits)
             || PluginsArchiver::doesAnyPluginArchiveWithoutVisits()
@@ -270,7 +279,7 @@ class Loader
             $this->params->setIsPartialArchive(false);
 
             $metrics = Context::executeWithQueryParameters(['requestedReport' => ''], function () {
-                $pluginsArchiver = new PluginsArchiver($this->params);
+                $pluginsArchiver = new PluginsArchiver($this->params, null, $this->isArchiveTemporary);
                 $metrics = $pluginsArchiver->callAggregateCoreMetrics();
                 $pluginsArchiver->finalizeArchive();
                 return $metrics;
@@ -289,7 +298,7 @@ class Loader
 
     protected function prepareAllPluginsArchive($visits, $visitsConverted)
     {
-        $pluginsArchiver = new PluginsArchiver($this->params);
+        $pluginsArchiver = new PluginsArchiver($this->params, null, $this->isArchiveTemporary);
 
         if ($this->mustProcessVisitCount($visits)
             || $this->doesRequestedPluginIncludeVisitsSummary()
@@ -368,16 +377,16 @@ class Loader
      */
     protected function getMinTimeArchiveProcessed()
     {
+        $endDateTimestamp = self::determineIfArchivePermanent($this->params->getDateEnd());
+        $this->isArchiveTemporary = false === $endDateTimestamp;
+
         // for range periods we can archive in a browser request request, make sure to check for the ttl no matter what
         $isRangeArchiveAndArchivingEnabled = $this->params->getPeriod()->getLabel() == 'range'
             && Rules::isArchivingEnabledFor([$this->params->getSite()->getId()], $this->params->getSegment(), $this->params->getPeriod()->getLabel());
 
-        if (!$isRangeArchiveAndArchivingEnabled) {
-            $endDateTimestamp = self::determineIfArchivePermanent($this->params->getDateEnd());
-            if ($endDateTimestamp) {
-                // past archive
-                return $endDateTimestamp;
-            }
+        if (!$isRangeArchiveAndArchivingEnabled && !$this->isArchiveTemporary) {
+            // past archive
+            return $endDateTimestamp;
         }
 
         $dateStart = $this->params->getDateStart();
@@ -386,6 +395,18 @@ class Loader
         $site      = $this->params->getSite();
         // in-progress archive
         return Rules::getMinTimeProcessedForInProgressArchive($dateStart, $period, $segment, $site);
+    }
+
+    /**
+     * Accessible for tests.
+     */
+    protected function isArchiveTemporary(): bool
+    {
+        if (null === $this->isArchiveTemporary) {
+            throw new \Exception('getMinTimeArchiveProcessed() should be called prior to isArchiveTemporary()');
+        }
+
+        return $this->isArchiveTemporary;
     }
 
     protected static function determineIfArchivePermanent(Date $dateEnd)
@@ -567,7 +588,7 @@ class Loader
     private function hasSiteVisitsBetweenTimeframe($idSite, Period $period)
     {
         $timezone = Site::getTimezoneFor($idSite);
-        list($date1, $date2) = $period->getBoundsInTimezone($timezone);
+        [$date1, $date2] = $period->getBoundsInTimezone($timezone);
 
         return $this->rawLogDao->hasSiteVisitsBetweenTimeframe($date1->getDatetime(), $date2->getDatetime(), $idSite);
     }
@@ -582,9 +603,17 @@ class Loader
         $params = $this->params;
 
         // the archive is invalidated and we are in a browser request that is allowed archive it
-        if ($value == ArchiveWriter::DONE_INVALIDATED
-            && Rules::isArchivingEnabledFor([$params->getSite()->getId()], $params->getSegment(), $params->getPeriod()->getLabel())
-        ) {
+        $isArchivingEnabled = Rules::isArchivingEnabledFor(
+            [$params->getSite()->getId()],
+            $params->getSegment(),
+            $params->getPeriod()->getLabel()
+        );
+
+        $isArchiveInvalidated =
+            $value == ArchiveWriter::DONE_INVALIDATED
+            || $value == ArchiveWriter::DONE_OK_TEMPORARY;
+
+        if ($isArchiveInvalidated && $isArchivingEnabled) {
             // if coming from core:archive, force rearchiving, since if we don't the entry will be removed from archive_invalidations
             // w/o being rearchived
             if (SettingsServer::isArchivePhpTriggered()) {
