@@ -411,7 +411,7 @@ class Loader
 
     protected static function determineIfArchivePermanent(Date $dateEnd)
     {
-        $now = time();
+        $now = Date::getNowTimestamp();
         $endTimestampUTC = strtotime($dateEnd->getDateEndUTC());
 
         if ($endTimestampUTC <= $now) {
