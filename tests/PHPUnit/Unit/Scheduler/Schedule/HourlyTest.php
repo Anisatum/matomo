@@ -16,16 +16,16 @@ use Piwik\Scheduler\Schedule\Hourly;
  */
 class HourlyTest extends \PHPUnit\Framework\TestCase
 {
-    private static $_JANUARY_01_1971_09_00_00;
-    private static $_JANUARY_01_1971_09_10_00;
-    private static $_JANUARY_01_1971_10_00_00;
+    private static $DT_JANUARY_01_1971_09_00_00;
+    private static $DT_JANUARY_01_1971_09_10_00;
+    private static $DT_JANUARY_01_1971_10_00_00;
 
     public static function setUpBeforeClass(): void
     {
         parent::setUpBeforeClass();
-        self::$_JANUARY_01_1971_09_00_00 = mktime(9, 00, 00, 1, 1, 1971);
-        self::$_JANUARY_01_1971_09_10_00 = mktime(9, 10, 00, 1, 1, 1971);
-        self::$_JANUARY_01_1971_10_00_00 = mktime(10, 00, 00, 1, 1, 1971);
+        self::$DT_JANUARY_01_1971_09_00_00 = mktime(9, 00, 00, 1, 1, 1971);
+        self::$DT_JANUARY_01_1971_09_10_00 = mktime(9, 10, 00, 1, 1, 1971);
+        self::$DT_JANUARY_01_1971_10_00_00 = mktime(10, 00, 00, 1, 1, 1971);
     }
 
     /**
@@ -70,8 +70,8 @@ class HourlyTest extends \PHPUnit\Framework\TestCase
         $mock = $this->createPartialMock('Piwik\Scheduler\Schedule\Hourly', array('getTime'));
         $mock->expects($this->any())
             ->method('getTime')
-            ->will($this->returnValue(self::$_JANUARY_01_1971_09_00_00));
-        $this->assertEquals(self::$_JANUARY_01_1971_10_00_00, $mock->getRescheduledTime());
+            ->will($this->returnValue(self::$DT_JANUARY_01_1971_09_00_00));
+        $this->assertEquals(self::$DT_JANUARY_01_1971_10_00_00, $mock->getRescheduledTime());
 
         /*
          * Test 2
@@ -85,7 +85,7 @@ class HourlyTest extends \PHPUnit\Framework\TestCase
         $mock = $this->createPartialMock('Piwik\Scheduler\Schedule\Hourly', array('getTime'));
         $mock->expects($this->any())
             ->method('getTime')
-            ->will($this->returnValue(self::$_JANUARY_01_1971_09_10_00));
-        $this->assertEquals(self::$_JANUARY_01_1971_10_00_00, $mock->getRescheduledTime());
+            ->will($this->returnValue(self::$DT_JANUARY_01_1971_09_10_00));
+        $this->assertEquals(self::$DT_JANUARY_01_1971_10_00_00, $mock->getRescheduledTime());
     }
 }

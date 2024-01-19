@@ -193,7 +193,7 @@ class ApiTest extends SystemTestCase
 
         $date                      = mktime(0, 0, 0, 1, 1, 2010);
         $lookBack                  = ceil((time() - $date) / 86400);
-        API::$_autoSuggestLookBack = $lookBack;
+        API::$tests_autoSuggestLookBack = $lookBack;
 
         $params['testSuffix'] = 'disabledFeatures';
 
@@ -253,7 +253,7 @@ class ApiTest extends SystemTestCase
 
         $date                      = mktime(0, 0, 0, 1, 1, 2010);
         $lookBack                  = ceil((time() - $date) / 86400);
-        API::$_autoSuggestLookBack = $lookBack;
+        API::$tests_autoSuggestLookBack = $lookBack;
 
         Fixture::clearInMemoryCaches();
 

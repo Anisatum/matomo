@@ -59,9 +59,9 @@ class AutoSuggestAPITest extends SystemTestCase
 
         $lookBack = ceil((time() - $date) / 86400);
 
-        self::$originalAutoSuggestLookBack = API::$_autoSuggestLookBack;
+        self::$originalAutoSuggestLookBack = API::$tests_autoSuggestLookBack;
 
-        API::$_autoSuggestLookBack = $lookBack;
+        API::$tests_autoSuggestLookBack = $lookBack;
         self::$fixture->dateTime = Date::factory($date)->getDatetime();
 
         parent::setUpBeforeClass();
@@ -71,7 +71,7 @@ class AutoSuggestAPITest extends SystemTestCase
 
     public static function tearDownAfterClass(): void
     {
-        API::$_autoSuggestLookBack = self::$originalAutoSuggestLookBack;
+        API::$tests_autoSuggestLookBack = self::$originalAutoSuggestLookBack;
 
         parent::tearDownAfterClass();
 
