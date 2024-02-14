@@ -1,0 +1,6 @@
+{
+    "description": "Disables URL-Decoding of current location and referer to avoid losing data in URL-encoded paths and parameters.",
+    "require": {
+        "matomo": ">=5.0.2-stable,<6.0.0-b1"
+    }
+}

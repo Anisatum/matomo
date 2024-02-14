@@ -1,0 +1,6 @@
+{
+    "DisableUrlDecoding": {
+        "DisableTitle": "Disable URL decoding.",
+        "DisableInlineHelp": "By default Matomo decodes the URL of the current location and the referrer, before it saves an event. This causes issues sometimes, you can disable it here."
+    }
+}
